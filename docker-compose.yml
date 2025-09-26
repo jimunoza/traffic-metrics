@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  traffic-api:
+    build: .
+    container_name: traffic_api
+    volumes:
+      - .:/app
+      - /Users/jose/Desktop:/data     # acceso al video
+      - ./output:/output               # carpeta de salida
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: always

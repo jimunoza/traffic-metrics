@@ -1,0 +1,27 @@
+# Entornos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.venv/
+env/
+venv/
+
+# Archivos de sistema
+.DS_Store
+
+# Salidas y datos
+output/
+configs/config.yaml
+
+# Dependencias
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# Archivos de Docker
+*.pid
