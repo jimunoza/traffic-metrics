@@ -1,98 +1,172 @@
-🚦 Traffic Metrics – Computer Vision for Intersections
+# 🚦 Traffic Metrics – Computer Vision for Smart Intersections
 
-Proyecto de detección y análisis de métricas de tránsito en una intersección con semáforos y cruces peatonales, usando visión por computador.
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)  
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com/)  
+[![FastAPI](https://img.shields.io/badge/api-fastapi-green)](https://fastapi.tiangolo.com/)  
+[![YOLOv8](https://img.shields.io/badge/detection-yolov8-orange)](https://github.com/ultralytics/ultralytics)  
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)  
 
-Actualmente incluye:
+**Smart traffic analytics with computer vision — YOLO + KCF + FastAPI, Docker-ready.**
 
-📂 Estructura modular (ingest, detect, track, metrics, viz, api, scripts)
+---
 
-🐳 Infraestructura con Docker + Docker Compose
+## 📖 Overview
 
-🎥 Ingesta offline desde un clip de video (EarthCam Roswell)
+Traffic Metrics is a modular **computer vision system** for analyzing traffic at signalized intersections with crosswalks.  
+It combines **deep learning** for detection (YOLOv8) with **classical tracking** (KCF) to provide real-time and offline metrics such as:
 
-📝 Herramienta para marcar zonas (carriles, cruces peatonales, líneas de detención)
+- Vehicle & pedestrian detection  
+- Multi-object tracking with unique IDs  
+- Lane occupancy and stop-line control  
+- Waiting times and queue lengths (planned)  
+- Red-light violations and near-miss analysis (future work)  
 
-✅ Script de validación de zonas, tanto local (GUI) como en Docker (video overlay)
+The project is designed for **research and prototyping**, fully reproducible with Docker.
 
-📂 Estructura del proyecto
+---
+
+## 🏗️ Architecture
+
+```text
+Video Source (File / RTSP / Webcam)
+            │
+        Ingest (OpenCV)
+            │
+    ┌───────┴────────┐
+    │ Detection (YOLOv8) ── Deep Learning
+    │ Tracking (KCF)  ──── Classical CV
+    └───────┬────────┘
+            │
+        Zone Mapping (lanes, crosswalks, stop-lines)
+            │
+        Metrics Engine (queues, speeds, waits)
+            │
+   API (FastAPI) ──▶ Dashboards / Stream / DB
+```
+
+---
+
+## 📂 Project Structure
+
+```
 traffic-metrics/
-│── api/                # FastAPI (API REST)
-│── ingest/             # Ingesta de video
-│── detect/             # Modelos de detección (próximo paso)
-│── track/              # Tracking multi-objeto (más adelante)
-│── metrics/            # Cálculo de métricas de tránsito
-│── viz/                # Visualización y dashboards
-│── scripts/            # Utilidades (marcado, validación, etc.)
-│── configs/            # Configuración de zonas y parámetros
-│── output/             # Resultados de validación (videos procesados)
+│── api/                # FastAPI endpoints (health, stream, etc.)
+│   └── stream.py
+│── ingest/             # Video capture
+│── detect/             # Detection logic
+│── track/              # Tracking (KCF)
+│── metrics/            # Metrics calculation (future)
+│── viz/                # Visualization / dashboards
+│── scripts/            # CLI utilities
+│   ├── mark_zones.py   # GUI tool to mark lanes/crosswalks
+│   ├── show_zones.py   # Local validation with OpenCV
+│   ├── detect_mvp.py   # Basic YOLO detection
+│   ├── track_kcf.py    # YOLO + KCF tracking
+│   └── detect_realtime.py / stream_fast.py
+│── configs/            # Intersection configs (zones.yaml)
+│── output/             # Processed video outputs
 │── Dockerfile
 │── docker-compose.yml
 │── requirements.txt
 │── requirements-dev.txt
 │── .gitignore
-│── README.md
 │── .env.example
+│── README.md
+```
 
-🚀 Cómo correr el proyecto
-1. Configurar variables de entorno
+---
 
-Copia .env.example → .env y edita:
+## 🚀 Getting Started
 
-VIDEO_SOURCE=/data/roswell.mov   # ruta al video (mapeado desde tu Desktop)
+### 1. Clone repo
+```bash
+git clone https://github.com/YOURUSER/traffic-metrics.git
+cd traffic-metrics
+```
 
-2. Levantar contenedor con API
-docker compose up --build
+### 2. Configure environment
+Copy `.env.example` → `.env` and set video source:
+```env
+VIDEO_SOURCE=/data/roswell.mov        # file (mounted from host)
+# VIDEO_SOURCE=0                      # local webcam
+# VIDEO_SOURCE=rtsp://user:pass@ip/   # RTSP camera
+```
 
+### 3. Build with Docker
+```bash
+docker compose build
+docker compose up
+```
 
-Endpoints disponibles:
+API will be available at:
+- `http://localhost:8000/` → root  
+- `http://localhost:8000/docs` → Swagger docs  
+- `http://localhost:8000/health` → healthcheck  
+- `http://localhost:8000/stream` → live detections (MJPEG)  
 
-http://localhost:8000/ → raíz API
+---
 
-http://localhost:8000/health → healthcheck
+## 🎥 Usage Examples
 
-http://localhost:8000/docs → Swagger UI
-
-3. Marcar zonas (local, fuera de Docker)
+### Mark intersection zones (lanes, crosswalks, stop-lines)
+```bash
 python scripts/mark_zones.py
+```
+Result saved in `configs/config.yaml`.
 
-
-Click izquierdo = añadir punto
-
-ENTER = cerrar polígono/segmento
-
-TAB = cambiar tipo (lane → crosswalk → stop_line)
-
-S = guardar en configs/config.yaml
-
-Q = salir
-
-4. Validar zonas
-
-Modo local (ventana OpenCV):
-
+### Validate zones visually
+```bash
 python scripts/show_zones.py
+```
 
+### Run detection MVP (offline)
+```bash
+docker exec -it traffic_api python scripts/detect_mvp.py
+```
+Output saved in `output/detect_mvp.mp4`.
 
-Modo Docker (exportar video con overlay):
+### Run YOLO + KCF tracking (offline)
+```bash
+docker exec -it traffic_api python scripts/track_kcf.py
+```
+Output saved in `output/track_kcf_fast.mp4`.
 
-docker exec -it traffic_api bash -c "python scripts/show_zones_docker.py"
+### Real-time detection (API stream)
+```bash
+open http://localhost:8000/stream
+```
 
+---
 
-Resultado en ./output/zones_overlay.mp4.
+## ✅ Roadmap (Levels)
 
-✅ Estado de avance por niveles
+- **Level 0** – Foundations: structure, Docker, API ✅  
+- **Level 1** – Zone definition & validation ✅  
+- **Level 2** – Detection MVP (YOLOv8) + real-time stream ✅  
+- **Level 3** – Tracking with KCF (multi-object IDs) ✅  
+- **Level 4** – Calibration & metric map (px → meters) 🚧  
+- **Level 5** – Lane assignment & movement classification  
+- **Level 6** – Signal phase detection (API or vision)  
+- **Level 7** – Metrics v1: counts, queues, waits  
+- **Level 8+** – Safety analysis: near-misses, violations  
 
-Nivel 0 – Fundaciones ✅
-Estructura, Docker, API mínima, ingesta offline.
+---
 
-Nivel 1 – Zonas de intersección ✅
-Editor manual + validación.
+## 🛠️ Requirements
 
-Nivel 2 – Detección (próximo) 🚧
-Integración de un detector (ej. YOLOv8) para autos y peatones.
+- Python 3.10+ (for local tools)  
+- Docker + Docker Compose  
+- Optional: GPU with CUDA for faster YOLO inference  
 
-🛠 Requisitos
+---
 
-Docker + Docker Compose
+## 🤝 Contributing
 
-(opcional) Python 3.10+ para correr herramientas locales (requirements-dev.txt)
+Pull requests are welcome. For major changes, please open an issue first to discuss.  
+Future improvements include multi-camera support, database integration, and advanced metrics.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
