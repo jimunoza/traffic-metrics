@@ -8,12 +8,12 @@ import torch
 CLASSES = {0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
 
 # Flags
-LIVE_VIEW = True
-SAVE_VIDEO = False  # 🚀 default = no guardar (máxima velocidad)
+LIVE_VIEW = False # flag ya no usado, no integrar vista en vivo
+SAVE_VIDEO = True  # default = no guardar (máxima velocidad)
 
 # Parámetros de reducción
 TARGET_FPS = 30
-PROC_W, PROC_H = 640, 360  # resolución reducida para procesar/guardar
+PROC_W, PROC_H = 1280, 960  # resolución reducida para procesar/guardar
 
 def create_tracker():
     if hasattr(cv2, "legacy") and hasattr(cv2.legacy, "TrackerKCF_create"):
