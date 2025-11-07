@@ -3,13 +3,18 @@
 # ===========================
 
 # Coordenadas de los dos extremos de la línea roja (extraídas con el script click_event)
-LINE_P1 = (220, 166)
-LINE_P2 = (315, 182)
+LINE_P1 = (299, 178)
+LINE_P2 = (219, 164)
 
 # Polígono de ROI (zona de detección, pista izquierda)
 ROI_POINTS = [
-    (225, 149),
-    (289, 154),
-    (284, 211),
-    (183, 190),
+(224, 130),
+(282, 128),
+(295, 151),
+(299, 178),
+(291, 210),
+(185, 194),
+(204, 176),
+(219, 164),
+(224, 148)
 ]

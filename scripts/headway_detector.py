@@ -24,8 +24,8 @@ if USE_ROI:
 # ===========================
 CONF_THRESH = 0.25
 TARGET_CLASSES = [2, 3, 5, 7]  # car, motorcycle, bus, truck
-DETECT_INTERVAL = 60
-MIN_AREA = 2000  # tamaño mínimo del bbox
+DETECT_INTERVAL = 10
+MIN_AREA = 100  # tamaño mínimo del bbox
 
 # ===========================
 # 🚀 CARGA DEL MODELO
@@ -109,35 +109,52 @@ while True:
             next_id += 1
 
     # Actualización de trackers
+    # Actualización de trackers
+    TOLERANCIA = 5  # margen vertical en píxeles
+
     for i, (tracker, obj_id, prev_center) in enumerate(trackers):
         ok, bbox = tracker.update(frame)
         if not ok:
             continue
         x, y, w, h = map(int, bbox)
         cx, cy = x + w // 2, y + h // 2
+        bottom_y = y + h  # borde inferior del bbox
 
-        # Verificar cruce de línea
+        # ===== Verificar cruce de línea =====
         if USE_ROI:
             p1, p2 = roi_config.LINE_P1, roi_config.LINE_P2
             y_line = p1[1] + (p2[1] - p1[1]) * ((cx - p1[0]) / (p2[0] - p1[0]))
-            if prev_center and prev_center[1] < y_line and cy >= y_line:
+
+            # Vehículo nuevo que ya aparece cruzando
+            if prev_center is None and bottom_y >= y_line - TOLERANCIA:
+                cross_events.append((obj_id, timestamp))
+                print(f"🚗 [NEW] Vehículo {obj_id} cruzó (inicio) a {timestamp:.2f}s")
+
+            # Vehículo que cruza desde arriba hacia abajo (con tolerancia)
+            elif prev_center and prev_center[1] < (y_line - TOLERANCIA) and bottom_y >= (y_line + TOLERANCIA):
                 cross_events.append((obj_id, timestamp))
                 print(f"🚗 Vehículo {obj_id} cruzó a {timestamp:.2f}s")
+
             trackers[i] = (tracker, obj_id, (cx, cy))
+
         else:
+            # Línea horizontal simple (sin ROI)
             LINE_Y = 550
-            if prev_center is None and cy >= y_line:
+            if prev_center is None and bottom_y >= LINE_Y - TOLERANCIA:
                 cross_events.append((obj_id, timestamp))
-            elif prev_center and prev_center[1] < y_line and cy >= y_line:
+            elif prev_center and prev_center[1] < (LINE_Y - TOLERANCIA) and bottom_y >= (LINE_Y + TOLERANCIA):
                 cross_events.append((obj_id, timestamp))
-
                 print(f"🚗 Vehículo {obj_id} cruzó a {timestamp:.2f}s")
             trackers[i] = (tracker, obj_id, (cx, cy))
 
-        # Dibujar bounding boxes
+        # ===== Dibujar bounding boxes y puntos de referencia =====
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         cv2.putText(frame, f"ID {obj_id}", (x, y - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        # Visualizar punto inferior y centro
+        cv2.circle(frame, (cx, cy), 3, (0, 255, 255), -1)      # centro
+        cv2.circle(frame, (cx, bottom_y), 3, (255, 0, 255), -1)  # borde inferior
+
 
     # Dibujar línea y ROI
     if USE_ROI:
