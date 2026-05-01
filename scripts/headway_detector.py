@@ -3,6 +3,7 @@ import pandas as pd
 from ultralytics import YOLO
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 # ===========================
 # ⚙️ CONFIGURACIÓN GENERAL
@@ -58,7 +59,7 @@ if SAVE_VIDEO:
     )
 
 # ===========================
-# 📊 VARIABLES GLOBALES
+# VARIABLES GLOBALES
 # ===========================
 trackers = []
 next_id = 0
@@ -66,7 +67,7 @@ frame_idx = 0
 cross_events = []
 
 # ===========================
-# 🔁 LOOP PRINCIPAL
+# LOOP PRINCIPAL
 # ===========================
 while True:
     ret, frame = cap.read()
@@ -176,14 +177,64 @@ if SAVE_VIDEO:
 cv2.destroyAllWindows()
 
 # ===========================
-# 📈 CÁLCULO DE HEADWAYS
+# CÁLCULO DE HEADWAYS
 # ===========================
 if cross_events:
+    # Crear DataFrame con los cruces
     df = pd.DataFrame(cross_events, columns=["id", "timestamp"])
     df = df.sort_values("timestamp")
     df["headway_s"] = df["timestamp"].diff()
+
+    # Guardar datos base
     df.to_csv(OUTPUT_CSV, index=False)
     print(f"\n✅ Resultados guardados en {OUTPUT_CSV}")
-    print(df.describe())
+
+    # ======= Estadísticas descriptivas =======
+    summary = df.describe()
+    summary_path = OUTPUT_CSV.replace(".csv", "_summary.csv")
+    summary.to_csv(summary_path)
+    print(f"📊 Resumen estadístico guardado en {summary_path}")
+    print(summary)
+
+    # ======= Calcular flujo vehicular =======
+    total_cruces = len(df)
+    duracion_seg = frame_idx / fps if fps > 0 else None
+    flujo_veh_min = None
+    if duracion_seg and duracion_seg > 0:
+        flujo_veh_min = total_cruces / (duracion_seg / 60)
+        print(f"🚗 Flujo vehicular aproximado: {flujo_veh_min:.1f} vehículos/minuto")
+
+    # ======= Gráfico de distribución de headways =======
+    valid_headways = df["headway_s"].dropna()
+    if not valid_headways.empty:
+        plt.figure(figsize=(8, 5))
+        plt.hist(valid_headways, bins=10, color="#4A90E2", edgecolor="black", alpha=0.8)
+
+        # Líneas de referencia
+        plt.axvline(valid_headways.mean(), color="red", linestyle="--", linewidth=1.5,
+                    label=f"Promedio = {valid_headways.mean():.2f} s")
+        plt.axvline(valid_headways.median(), color="green", linestyle=":", linewidth=1.5,
+                    label=f"Mediana = {valid_headways.median():.2f} s")
+
+        # Título dinámico con flujo
+        titulo = "Distribución de Headways"
+        if flujo_veh_min:
+            titulo += f"\nFlujo: {flujo_veh_min:.1f} veh/min"
+
+        plt.title(titulo, fontsize=14, weight="bold")
+        plt.xlabel("Headway (s)")
+        plt.ylabel("Frecuencia")
+        plt.legend()
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        # Guardar gráfico
+        plot_path = OUTPUT_CSV.replace(".csv", "_hist.png")
+        plt.savefig(plot_path, dpi=300)
+        print(f"📈 Gráfico guardado en {plot_path}")
+        plt.show()
+    else:
+        print("⚠️ No hay headways válidos para graficar.")
+
 else:
     print("\n⚠️ No se registraron cruces.")

@@ -1,7 +1,7 @@
 import cv2
 
 # Ruta de tu imagen o un frame del video
-IMAGE_PATH = "/Users/jose/Desktop/roi.png"  # usa tu imagen .png o .jpg
+IMAGE_PATH = "/Users/jose/Desktop/roi.png" 
 
 # Cargar imagen
 img = cv2.imread(IMAGE_PATH)
@@ -20,7 +20,7 @@ def click_event(event, x, y, flags, params):
 cv2.imshow("Selecciona puntos", img)
 cv2.setMouseCallback("Selecciona puntos", click_event)
 
-print("🖱️ Haz clic en los puntos que quieras (ESC para salir)...")
+print("Haz clic en los puntos que quieras (ESC para salir)...")
 
 while True:
     key = cv2.waitKey(1) & 0xFF
