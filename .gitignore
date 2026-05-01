@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.env
+.env
 .venv/
 env/
 venv/
@@ -11,8 +11,19 @@ venv/
 # Archivos de sistema
 .DS_Store
 
-# Salidas y datos
+# Salidas y datos procesados
 output/
+data/videos/
+
+# Archivos de video y modelos
+*.mp4
+*.avi
+*.pt
+
+# Datos exportados
+*.csv
+
+# Configs locales de zonas
 configs/config.yaml
 
 # Dependencias
@@ -22,8 +33,3 @@ build/
 
 # Logs
 *.log
-
-# Archivos de Docker
-*.pid
-
-yolov8n.pt
