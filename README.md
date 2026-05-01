@@ -1,172 +1,92 @@
-# 🚦 Traffic Metrics – Computer Vision for Smart Intersections
+# traffic-metrics
 
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)  
-[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com/)  
-[![FastAPI](https://img.shields.io/badge/api-fastapi-green)](https://fastapi.tiangolo.com/)  
-[![YOLOv8](https://img.shields.io/badge/detection-yolov8-orange)](https://github.com/ultralytics/ultralytics)  
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)  
+> Open-source computer vision pipeline for vehicle counting and headway estimation at urban intersections.
 
-**Smart traffic analytics with computer vision — YOLO + KCF + FastAPI, Docker-ready.**
-
----
-
-## 📖 Overview
-
-Traffic Metrics is a modular **computer vision system** for analyzing traffic at signalized intersections with crosswalks.  
-It combines **deep learning** for detection (YOLOv8) with **classical tracking** (KCF) to provide real-time and offline metrics such as:
-
-- Vehicle & pedestrian detection  
-- Multi-object tracking with unique IDs  
-- Lane occupancy and stop-line control  
-- Waiting times and queue lengths (planned)  
-- Red-light violations and near-miss analysis (future work)  
-
-The project is designed for **research and prototyping**, fully reproducible with Docker.
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-EE4C2C?style=flat)
+![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat)
 
 ---
 
-## 🏗️ Architecture
+## What it does
 
-```text
-Video Source (File / RTSP / Webcam)
-            │
-        Ingest (OpenCV)
-            │
-    ┌───────┴────────┐
-    │ Detection (YOLOv8) ── Deep Learning
-    │ Tracking (KCF)  ──── Classical CV
-    └───────┬────────┘
-            │
-        Zone Mapping (lanes, crosswalks, stop-lines)
-            │
-        Metrics Engine (queues, speeds, waits)
-            │
-   API (FastAPI) ──▶ Dashboards / Stream / DB
-```
+**traffic-metrics** processes video from a fixed urban camera and estimates fundamental traffic flow metrics — without cloud services, proprietary software, or dedicated hardware.
+
+Given a video file, the pipeline:
+
+1. Runs frame-by-frame vehicle detection using **YOLOv8** (classes: car, truck, bus, motorcycle)
+2. Defines a **region of interest (ROI)** and a **virtual counting line** to filter irrelevant detections
+3. Records a crossing event each time a vehicle's bounding box crosses the line
+4. Computes **temporal headways** (Δt between consecutive crossings) and **vehicle count**
+5. Exports results to **CSV** for downstream analysis
+
+The system was validated on real footage from the Tobalaba intersection in Santiago, Chile, across multiple resolutions (480p, 720p, 1080p) and lighting conditions.
 
 ---
 
-## 📂 Project Structure
+## Results
+
+| Video | Resolution | Auto count | Manual count |
+|-------|-----------|-----------|-------------|
+| Tobalaba | 1920×1080 | 45 | 42 |
+| Tobalaba | 640×480 | 47 | 35 |
+
+- **Best accuracy:** 1080p, evening hours (18:00–20:30) when artificial lighting complements natural light without backlight interference
+- **Estimated flow:** ~56.8 veh/min on the analyzed segment
+- **Headway distribution:** mean 1.03 s, median 0.33 s — low-headway spikes correspond to traffic light release bursts and occasional double-detections
+
+Compared qualitatively against [Data From Sky](https://datafromsky.com/), a commercial aerial traffic analytics platform. The open-source pipeline reproduces core metrics (count, headway, flow) at a fraction of the cost, with higher variability due to the absence of a robust multi-object tracker.
+
+---
+
+## Pipeline
 
 ```
-traffic-metrics/
-│── api/                # FastAPI endpoints (health, stream, etc.)
-│   └── stream.py
-│── ingest/             # Video capture
-│── detect/             # Detection logic
-│── track/              # Tracking (KCF)
-│── metrics/            # Metrics calculation (future)
-│── viz/                # Visualization / dashboards
-│── scripts/            # CLI utilities
-│   ├── mark_zones.py   # GUI tool to mark lanes/crosswalks
-│   ├── show_zones.py   # Local validation with OpenCV
-│   ├── detect_mvp.py   # Basic YOLO detection
-│   ├── track_kcf.py    # YOLO + KCF tracking
-│   └── detect_realtime.py / stream_fast.py
-│── configs/            # Intersection configs (zones.yaml)
-│── output/             # Processed video outputs
-│── Dockerfile
-│── docker-compose.yml
-│── requirements.txt
-│── requirements-dev.txt
-│── .gitignore
-│── .env.example
-│── README.md
+Video → ROI crop → YOLOv8 detection → Periodic re-detection → Virtual line crossing → CSV / metrics
 ```
+
+Early versions used OpenCV's KCF tracker, which proved unstable under occlusions and scale changes. The current approach replaces it with periodic YOLO re-detection, improving both accuracy and processing speed.
 
 ---
 
-## 🚀 Getting Started
+## Setup
 
-### 1. Clone repo
 ```bash
-git clone https://github.com/YOURUSER/traffic-metrics.git
+git clone https://github.com/jimunoza/traffic-metrics.git
 cd traffic-metrics
+pip install -r requirements.txt
 ```
 
-### 2. Configure environment
-Copy `.env.example` → `.env` and set video source:
-```env
-VIDEO_SOURCE=/data/roswell.mov        # file (mounted from host)
-# VIDEO_SOURCE=0                      # local webcam
-# VIDEO_SOURCE=rtsp://user:pass@ip/   # RTSP camera
-```
-
-### 3. Build with Docker
-```bash
-docker compose build
-docker compose up
-```
-
-API will be available at:
-- `http://localhost:8000/` → root  
-- `http://localhost:8000/docs` → Swagger docs  
-- `http://localhost:8000/health` → healthcheck  
-- `http://localhost:8000/stream` → live detections (MJPEG)  
+**Requirements:** Python 3.9+, `ultralytics`, `opencv-python`, `pandas`
 
 ---
 
-## 🎥 Usage Examples
+## Usage
 
-### Mark intersection zones (lanes, crosswalks, stop-lines)
 ```bash
-python scripts/mark_zones.py
-```
-Result saved in `configs/config.yaml`.
-
-### Validate zones visually
-```bash
-python scripts/show_zones.py
+python main.py --video path/to/video.mp4 --model yolov8m.pt
 ```
 
-### Run detection MVP (offline)
-```bash
-docker exec -it traffic_api python scripts/detect_mvp.py
-```
-Output saved in `output/detect_mvp.mp4`.
-
-### Run YOLO + KCF tracking (offline)
-```bash
-docker exec -it traffic_api python scripts/track_kcf.py
-```
-Output saved in `output/track_kcf_fast.mp4`.
-
-### Real-time detection (API stream)
-```bash
-open http://localhost:8000/stream
-```
+Output: a CSV file with per-crossing timestamps and computed headways, plus an annotated video with bounding boxes and the virtual counting line overlaid.
 
 ---
 
-## ✅ Roadmap (Levels)
+## Limitations & future work
 
-- **Level 0** – Foundations: structure, Docker, API ✅  
-- **Level 1** – Zone definition & validation ✅  
-- **Level 2** – Detection MVP (YOLOv8) + real-time stream ✅  
-- **Level 3** – Tracking with KCF (multi-object IDs) ✅  
-- **Level 4** – Calibration & metric map (px → meters) 🚧  
-- **Level 5** – Lane assignment & movement classification  
-- **Level 6** – Signal phase detection (API or vision)  
-- **Level 7** – Metrics v1: counts, queues, waits  
-- **Level 8+** – Safety analysis: near-misses, violations  
+- No robust multi-object tracker (BOT-SORT, ByteTrack) — double-counting can occur in dense traffic
+- ROI and counting line are currently hardcoded per scene; a configuration interface would improve reusability
+- No support for multi-lane or multi-direction counting yet
 
 ---
 
-## 🛠️ Requirements
+## Authors
 
-- Python 3.10+ (for local tools)  
-- Docker + Docker Compose  
-- Optional: GPU with CUDA for faster YOLO inference  
+José Ignacio Muñoz · Rodrigo Zárate — Universidad de los Andes, Santiago, Chile
 
 ---
 
-## 🤝 Contributing
+## References
 
-Pull requests are welcome. For major changes, please open an issue first to discuss.  
-Future improvements include multi-camera support, database integration, and advanced metrics.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+- Ultralytics YOLOv8 — https://docs.ultralytics.com/
+- Data From Sky — https://datafromsky.com/
